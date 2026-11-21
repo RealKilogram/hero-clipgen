@@ -298,8 +298,8 @@ def run_job(video, out_dir, name, fps, quality):
         msg = str(e)
         hint = ""
         if getattr(e, "winerror", None) == 5 or "拒绝访问" in msg or "denied" in msg.lower():
-            hint = ("\n常见原因：直接把目录建在盘符根下（D:\\护士）时，Windows 默认只允许"
-                    "管理员写入。换成带一级子目录的路径就好，例如 D:\\素材\\护士。")
+            hint = ("\n常见原因：直接把目录建在盘符根下（如 D:\\）时，Windows 默认只允许"
+                    "管理员写入。换成带一级子目录的路径就好，例如 D:\\素材\\角色。")
         with LOCK:
             STATE["phase"] = "error"
             STATE["error"] = "创建导出目录失败：%s%s" % (msg, hint)

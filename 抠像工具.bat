@@ -9,10 +9,6 @@ if exist "%~dp0runtime\python.exe" (
   set "PY=%~dp0runtime\python.exe"
   goto RUN
 )
-if exist "%~dp0..\.tools\python\python.exe" (
-  set "PY=%~dp0..\.tools\python\python.exe"
-  goto RUN
-)
 
 where py >nul 2>nul
 if not errorlevel 1 (

@@ -2,7 +2,7 @@
 
 把一段人物视频转成**带透明通道的逐帧素材包**（WebP + alpha），用来做桌面特效、直播叠加，或者丢进剪辑软件。
 
-给 [英雄登场](https://github.com/你的用户名/hero-arrival) 配套写的小工具，但素材包是通用的：任何能吃 PNG 序列的东西都能用。
+给 [英雄登场](https://github.com/RealKilogram/hero-arrival) 配套写的小工具，但素材包是通用的：任何能吃 PNG 序列的东西都能用。
 
 ---
 
