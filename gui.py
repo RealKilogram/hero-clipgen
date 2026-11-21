@@ -354,21 +354,33 @@ def run_job(video, out_dir, name, fps, quality):
 
 
 def probe():
-    """检查运行环境"""
+    """检查运行环境，每项返回 [名称, 是否就绪, 说明, 补救办法]"""
     items = []
+    pip_cmd = "pip install numpy opencv-python-headless pillow onnxruntime"
     try:
         import numpy  # noqa: F401
         import cv2  # noqa: F401
         import PIL  # noqa: F401
         import onnxruntime  # noqa: F401
-        items.append(["Python 依赖", True, "numpy / opencv / pillow / onnxruntime 已安装"])
+        items.append(["Python 依赖", True, "numpy / opencv / pillow / onnxruntime 已安装", ""])
     except Exception as e:  # noqa: BLE001
-        items.append(["Python 依赖", False, "缺少：%s（运行 pip install numpy opencv-python-headless pillow onnxruntime）" % e])
+        items.append(["Python 依赖", False, "缺少：%s" % e, pip_cmd])
     model = os.path.join(HERE, "rmbg14.onnx")
-    items.append(["抠像模型", os.path.exists(model),
-                  "tools/rmbg14.onnx" if os.path.exists(model) else "缺少 tools/rmbg14.onnx（168MB，见 README）"])
+    has_model = os.path.exists(model)
+    items.append([
+        "抠像模型", has_model,
+        "tools/rmbg14.onnx" if has_model else "缺少 tools/rmbg14.onnx（约 168MB）",
+        "" if has_model else
+        "https://hf-mirror.com/briaai/RMBG-1.4/resolve/main/onnx/model.onnx  下载后存为 tools/rmbg14.onnx",
+    ])
     ff = os.path.join(HERE, "ffmpeg.exe")
-    items.append(["ffmpeg", os.path.exists(ff), "tools/ffmpeg.exe" if os.path.exists(ff) else "缺少 tools/ffmpeg.exe"])
+    has_ff = os.path.exists(ff) or bool(shutil.which("ffmpeg"))
+    items.append([
+        "ffmpeg", has_ff,
+        "tools/ffmpeg.exe" if os.path.exists(ff) else ("PATH 里的 ffmpeg" if has_ff else "缺少 ffmpeg"),
+        "" if has_ff else
+        "把 ffmpeg.exe 放进 tools\\ 目录，或装好 ffmpeg 并加入 PATH",
+    ])
     return items
 
 
@@ -427,6 +439,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, json.dumps({"path": dst, "size": os.path.getsize(dst)}))
         if path == "/start":
             body = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
+            missing = [it for it in probe() if it[0] != "本次启动" and not it[1]]
+            if missing:
+                detail = "；".join("%s（%s）" % (it[0], it[3] or it[2]) for it in missing)
+                return self._send(400, json.dumps(
+                    {"error": "环境未就绪：%s" % detail}, ensure_ascii=False))
             video = body.get("video") or ""
             if not os.path.exists(video):
                 return self._send(400, json.dumps({"error": "视频文件不存在"}))
@@ -550,8 +567,12 @@ def main():
     print(" 浏览器没自动弹出来的话，手打上面这行地址。")
     print(" 关闭这个窗口即可退出。")
     print()
-    for name, ok, detail in probe():
+    for item in probe():
+        name, ok, detail = item[0], item[1], item[2]
+        fix = item[3] if len(item) > 3 else ""
         print("  [%s] %s  %s" % ("OK" if ok else "!!", name, detail))
+        if not ok and fix:
+            print("       -> " + fix)
     print()
     if os.environ.get("NO_BROWSER") != "1":
         threading.Timer(0.9, lambda: open_browser(url)).start()
