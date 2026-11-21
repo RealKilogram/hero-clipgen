@@ -1,0 +1,13 @@
+# ---- 模型、ffmpeg 与运行时（体积大，且 ffmpeg 是 GPL 构建）----
+*.onnx
+*.exe
+runtime/
+_cache/
+out/
+
+# ---- Python ----
+__pycache__/
+*.pyc
+
+# ---- 产物 ----
+*.zip

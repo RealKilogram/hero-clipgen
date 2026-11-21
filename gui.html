@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>抠像工具 · 英雄登场</title>
+<style>
+  :root { --pink:#f06aa8; --pink2:#ff9ec8; --bg:#14121a; --panel:#1d1a26; --line:#2e2a3a; --txt:#e8e4f0; --dim:#9a93ad; }
+  * { box-sizing:border-box; }
+  html { overflow-x:hidden; }
+  body { margin:0; width:100vw; overflow-x:hidden; background:radial-gradient(1200px 600px at 70% -10%, #2a1f3a 0%, var(--bg) 60%);
+         color:var(--txt); font:14px/1.6 "Microsoft YaHei", "PingFang SC", sans-serif; min-height:100vh; }
+  .wrap { width:820px; max-width:calc(100vw - 48px); margin:0 auto; padding:36px 0 60px; }
+  h1 { font-size:22px; margin:0 0 4px; letter-spacing:.5px; }
+  h1 span { color:var(--pink2); }
+  .sub { color:var(--dim); font-size:13px; margin-bottom:24px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:16px; }
+  .drop { border:2px dashed #3b3450; border-radius:12px; padding:26px 16px; text-align:center; cursor:pointer;
+          transition:.15s; color:var(--dim); }
+  .drop:hover, .drop.over { border-color:var(--pink); background:#241a2e; color:var(--txt); }
+  .drop b { color:var(--pink2); }
+  .file { margin-top:10px; font-size:13px; color:var(--txt); word-break:break-all; }
+  label { display:block; font-size:13px; color:var(--dim); margin:16px 0 6px; }
+  input[type=text], select { width:100%; background:#131019; border:1px solid var(--line); color:var(--txt);
+          border-radius:8px; padding:9px 11px; font-size:14px; outline:none; }
+  input[type=text]:focus, select:focus { border-color:var(--pink); }
+  .row { display:flex; gap:16px; }
+  .row > div { flex:1; }
+  input[type=range] { width:100%; accent-color:var(--pink); }
+  .btn { border:0; border-radius:10px; padding:11px 22px; font-size:15px; cursor:pointer; background:var(--pink);
+         color:#fff; font-weight:600; transition:.15s; }
+  .btn:hover { background:var(--pink2); }
+  .btn:disabled { background:#3a3346; color:#7c758c; cursor:not-allowed; }
+  .btn.ghost { background:#241f30; color:var(--txt); border:1px solid var(--line); }
+  .btn.ghost:hover { border-color:var(--pink); }
+  .btn.danger { background:#7a2233; color:#ffd9e1; margin-left:10px; }
+  .btn.danger:hover { background:#a02c42; }
+  .btn.danger:disabled { background:#3a2330; color:#8a6b74; }
+  .bar { height:10px; background:#131019; border-radius:6px; overflow:hidden; margin:14px 0 6px; }
+  .bar > i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--pink),var(--pink2)); transition:width .3s; }
+  pre { background:#0f0d15; border:1px solid var(--line); border-radius:10px; padding:12px; height:220px;
+        overflow:auto; font:12px/1.55 Consolas, monospace; color:#b9b2c9; white-space:pre-wrap; margin:12px 0 0; }
+  .tip { font-size:12.5px; color:var(--dim); }
+  .ok { color:#5dd39e; } .bad { color:#ff7b7b; } .warn { color:#f0b46a; }
+  .hide { display:none; }
+  #picker { position:fixed; inset:0; background:rgba(0,0,0,.62); z-index:99;
+            display:none; align-items:center; justify-content:center; }
+  #picker.on { display:flex; }
+  .pbox { background:#221a2e; border:1px solid var(--line); border-radius:14px; width:min(580px,92vw);
+          max-height:74vh; display:flex; flex-direction:column; }
+  .phead { padding:13px 16px; border-bottom:1px solid var(--line); font-weight:600; }
+  .pcur  { padding:8px 16px; font-size:12.5px; color:var(--pink2); word-break:break-all;
+           border-bottom:1px solid #2a2338; min-height:34px; }
+  .plist { overflow:auto; padding:6px; flex:1; min-height:220px; }
+  .pitem { padding:8px 12px; border-radius:8px; cursor:pointer; font-size:13.5px; }
+  .pitem:hover { background:#2e2540; }
+  .pitem.up { color:var(--dim); }
+  .pfoot { padding:10px 14px; border-top:1px solid var(--line); display:flex; gap:8px; justify-content:flex-end; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>抠像工具 · <span>英雄登场</span></h1>
+  <div class="sub">把一段视频抠成带透明通道的素材包，直接进素材库。</div>
+
+  <div class="card">
+    <div id="drop" class="drop">把视频拖进来，或<b>点击选择文件</b><br><span class="tip">mp4 / mov / mkv 都行</span></div>
+    <div id="file" class="file"></div>
+
+    <label>素材名字（显示在程序列表里）</label>
+    <input type="text" id="name" placeholder="例如：爱弥斯">
+
+    <label style="margin-top:16px;">导出到哪儿</label>
+    <div class="row" style="grid-template-columns:1fr auto; align-items:end;">
+      <div>
+        <input type="text" id="outdir" placeholder="留空 = 自动放进程序素材库">
+      </div>
+      <div>
+        <button class="btn ghost" id="pickDir" style="width:100%;white-space:nowrap;">浏览…</button>
+      </div>
+    </div>
+    <div class="tip" style="margin-top:6px;line-height:1.7;">
+      留空：直接导出到程序素材库 <code id="libPath">app\assets\clips\&lt;素材名&gt;</code>，生成完立刻能在托盘「设置」里看到。<br>
+      填别的目录：只把素材包生成到那里，之后用「导入素材」加进来（适合先攒着、或者给别人）。
+    </div>
+
+    <div class="row">
+      <div>
+        <label>抽帧帧率</label>
+        <select id="fps">
+          <option value="30">30 fps（文件小，推荐）</option>
+          <option value="60">60 fps（丝滑，文件约翻倍）</option>
+        </select>
+      </div>
+      <div>
+        <label>画质 <b id="qv">88</b></label>
+        <input type="range" id="quality" min="60" max="95" value="88" step="1">
+      </div>
+    </div>
+
+    <div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
+      <button class="btn" id="go" disabled>开始抠像</button>
+<button class="btn danger hide" id="stop">终止</button>
+      <button class="btn ghost hide" id="openFolder">打开输出文件夹</button>
+      <span class="tip" id="hint"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <b>进度</b><span class="tip" id="pctText">等待开始</span>
+    </div>
+    <div class="bar"><i id="bar"></i></div>
+    <pre id="log">准备就绪。选一个视频，填个名字，点「开始抠像」。</pre>
+  </div>
+
+  <div class="card">
+    <b>环境检查</b>
+    <div id="probe" class="tip" style="margin-top:8px;"></div>
+  </div>
+</div>
+
+<div id="picker">
+  <div class="pbox">
+    <div class="phead">选择导出目录</div>
+    <div class="pcur" id="pickCur">正在读取…</div>
+    <div class="plist" id="pickList"></div>
+    <div class="pfoot">
+      <button class="btn ghost" id="pickCancel">取消</button>
+      <button class="btn" id="pickOk">就用这个目录</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let videoPath = '', timer = null, outPath = '';
+
+const drop = $('#drop');
+drop.onclick = () => pick();
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); };
+
+const input = document.createElement('input');
+input.type = 'file';
+input.accept = 'video/*';
+input.onchange = () => { if (input.files[0]) upload(input.files[0]); };
+function pick() { input.value = ''; input.click(); }
+
+async function upload(file) {
+  $('#file').innerHTML = '正在读取 <b>' + file.name + '</b>（' + (file.size / 1048576).toFixed(1) + ' MB）…';
+  $('#go').disabled = true;
+  const r = await fetch('/upload', { method: 'POST', body: file, headers: { 'X-Filename': encodeURIComponent(file.name) } });
+  const j = await r.json();
+  videoPath = j.path;
+  $('#file').innerHTML = '已选择：<b>' + file.name + '</b>（' + (file.size / 1048576).toFixed(1) + ' MB）';
+  if (!$('#name').value) $('#name').value = file.name.replace(/\.[^.]+$/, '');
+  $('#go').disabled = false;
+}
+
+$('#quality').oninput = () => $('#qv').textContent = $('#quality').value;
+
+// 实时显示「留空时的默认落点」
+function defaultOut() {
+  const n = $('#name').value.trim() || '<素材名>';
+  return 'app\\assets\\clips\\' + n;
+}
+$('#name').oninput = () => { $('#libPath').textContent = defaultOut(); };
+$('#libPath').textContent = defaultOut();
+
+let pickPath = '';
+async function loadDir(p) {
+  $('#pickList').innerHTML = '<div class="pitem up">读取中…</div>';
+  try {
+    const j = await (await fetch('/ls?path=' + encodeURIComponent(p))).json();
+    pickPath = j.path || '';
+    $('#pickCur').textContent = j.path || '我的电脑';
+    const list = $('#pickList');
+    list.innerHTML = '';
+    if (j.path) {
+      const up = document.createElement('div');
+      up.className = 'pitem up';
+      up.textContent = '⬑ 上一级';
+      up.onclick = () => loadDir(j.parent || '');
+      list.appendChild(up);
+    }
+    (j.dirs || []).forEach((d) => {
+      const el = document.createElement('div');
+      el.className = 'pitem';
+      el.textContent = (j.drives ? '💽 ' : '📁 ') + d.name;
+      el.onclick = () => loadDir(d.path);
+      list.appendChild(el);
+    });
+    if (j.error) {
+      const e = document.createElement('div');
+      e.className = 'tip';
+      e.style.color = '#ff7b7b';
+      e.textContent = j.error;
+      list.appendChild(e);
+    }
+    if (!j.dirs || !j.dirs.length) {
+      const e = document.createElement('div');
+      e.className = 'tip';
+      e.textContent = '（这里没有子文件夹，可以直接用这个目录）';
+      list.appendChild(e);
+    }
+  } catch (e) {
+    $('#pickList').innerHTML = '<div class="pitem up">读取失败：' + e + '</div>';
+  }
+}
+
+$('#pickDir').onclick = () => {
+  $('#picker').classList.add('on');
+  loadDir($('#outdir').value.trim() || '');
+};
+$('#pickOk').onclick = () => {
+  if (pickPath) $('#outdir').value = pickPath;
+  $('#picker').classList.remove('on');
+};
+$('#pickCancel').onclick = () => $('#picker').classList.remove('on');
+$('#picker').onclick = (e) => { if (e.target.id === 'picker') $('#picker').classList.remove('on'); };
+
+$('#go').onclick = async () => {
+  if (!videoPath) return;
+  const outdir = $('#outdir').value.trim();
+  const body = {
+    video: videoPath,
+    name: $('#name').value.trim(),
+    fps: Number($('#fps').value),
+    quality: Number($('#quality').value),
+    outdir: outdir,
+  };
+  let r = await fetch('/start', { method: 'POST', body: JSON.stringify(body) });
+  let j = await r.json();
+  if (j.exists) {
+    if (!confirm('「' + j.out + '」已经存在，重新生成会覆盖里面的帧。\n继续吗？')) return;
+    body.force = true;
+    r = await fetch('/start', { method: 'POST', body: JSON.stringify(body) });
+    j = await r.json();
+  }
+  if (j.error) { $('#log').textContent = j.error; return; }
+  if (!j.ok) return;
+  $('#go').disabled = true;
+  $('#go').textContent = '抠像中…';
+  $('#stop').classList.remove('hide');
+  $('#stop').disabled = false;
+  $('#stop').textContent = '终止';
+  $('#hint').textContent = '';
+  $('#log').textContent = '启动中…（第一次要加载 168MB 模型，约 5~15 秒）';
+  outPath = j.out;
+  if (timer) clearInterval(timer);
+  timer = setInterval(poll, 700);
+};
+
+async function poll() {
+  const s = await (await fetch('/status')).json();
+  $('#bar').style.width = s.pct + '%';
+  $('#pctText').textContent = s.phase === 'running'
+    ? s.pct + '%  ' + (s.frames ? s.frames + ' / ' + s.total + ' 帧' : '准备中')
+    : (s.phase === 'done' ? '完成' : s.phase === 'error' ? '出错' : '等待开始');
+  $('#log').textContent = s.logs.join('\n');
+  $('#log').scrollTop = $('#log').scrollHeight;
+  if (s.phase === 'done' || s.phase === 'error' || s.phase === 'stopped') {
+    clearInterval(timer); timer = null;
+    $('#go').disabled = false;
+    $('#go').textContent = '开始抠像';
+    $('#stop').classList.add('hide');
+    if (s.phase === 'done') {
+      outPath = s.out;
+      $('#openFolder').classList.remove('hide');
+      $('#hint').innerHTML = s.in_library
+        ? '<span class="ok">✓ 已生成并进素材库</span>，托盘 → 设置 → 刷新就能看到'
+        : '<span class="ok">✓ 已生成</span>，路径在下面日志里，用「导入素材」加进程序';
+    } else if (s.phase === 'stopped') {
+      $('#hint').innerHTML = '<span class="warn">■ 已终止</span>，已生成 '
+        + (s.frames || 0) + ' 张';
+    } else {
+      $('#hint').innerHTML = '<span class="bad">✗ ' + (s.error || '失败') + '</span>';
+    }
+  }
+}
+
+$('#stop').onclick = async () => {
+  $('#stop').disabled = true;
+  $('#stop').textContent = '终止中…';
+  let s = {};
+  try {
+    s = await (await fetch('/stop', { method: 'POST', body: '{}' })).json();
+  } catch (e) {
+    $('#hint').innerHTML = '<span class="bad">✗ 终止请求失败</span>';
+    $('#stop').disabled = false; $('#stop').textContent = '终止';
+    return;
+  }
+  if (timer) { clearInterval(timer); timer = null; }
+  $('#go').disabled = false;
+  $('#go').textContent = '开始抠像';
+  $('#stop').classList.add('hide');
+  const n = s.frames || 0;
+  const dir = s.out || outPath || '';
+  $('#hint').innerHTML = '<span class="warn">■ 已终止</span>，已生成 ' + n + ' 张';
+  if (n <= 0 && !dir) return;
+  const yes = confirm(
+    '已终止抠像。\n\n要删除刚才导出的 ' + n + ' 张图片吗？\n\n' +
+    (dir ? dir + '\n\n' : '') +
+    '选「是」删除，选「否」保留。'
+  );
+  if (!yes) return;
+  try {
+    const r = await (await fetch('/cleanup', {
+      method: 'POST', body: JSON.stringify({ out: dir })
+    })).json();
+    $('#hint').innerHTML = r.ok
+      ? '<span class="warn">■ 已终止并删除 ' + r.removed + ' 张图片</span>'
+      : '<span class="bad">✗ 删除失败：' + (r.error || '') + '</span>';
+  } catch (e) {
+    $('#hint').innerHTML = '<span class="bad">✗ 删除请求失败</span>';
+  }
+};
+
+$('#openFolder').onclick = () => fetch('/open', { method: 'POST', body: JSON.stringify({ path: outPath }) });
+
+(async () => {
+  const items = await (await fetch('/probe')).json();
+  $('#probe').innerHTML = items.map(([n, ok, d]) =>
+    '<div><span class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + '</span> ' + n + ' — ' + d + '</div>'
+  ).join('');
+})();
+</script>
+</body>
+</html>
